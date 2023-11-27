@@ -1,0 +1,24 @@
+# IDE specific files
+.vscode
+.DS_store
+
+# Python specific files
+__pycache__/
+src/__pycache__/
+
+# Output files
+results/
+visuals/
+
+# Docker specific files
+Dockerfile
+compose.yaml
+.devcontainer
+.dockerignore
+
+# Github specific files
+.github
+
+# Experiment files
+noisy_extension_analysis
+experiment_runner.sh
