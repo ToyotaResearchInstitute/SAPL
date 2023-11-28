@@ -120,7 +120,7 @@ def aPL_experiment(
     else:
         validation_agreement = False
 
-    final_weightset = get_final_w_set(formula, most_likely_w_set) #NOQA
+    final_weightset = get_final_w_set(formula, most_likely_w_set)  # NOQA
 
     output = {
         "final_w_set": [final_weightset],
