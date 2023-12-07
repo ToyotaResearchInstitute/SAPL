@@ -1,7 +1,27 @@
 """
+This program runs human subject studies on either a computer or a simulator
+on two scenarios: pedestrian and overtake.
 
+It takes experiment conditions: number of signals to create questions from,
+                                number of samples to select among,
+                                terminating condition,
+                                number of questions to ask,
+                                number of validation questions,
+                                experiment type,
+                                state of the simulator (exists or not)
 
+and returns a .csv file (or adds a row to an existing .csv file)
+that contains: most-likely weight valuation
+               list of weighted robustness values of signals w/ most-likely valuation
+               posterior probability of the most-likely weight valuation
+               number of training questions
+               user agreement in training questions
+               user agreement in validation questions.
+
+Author: Ruya Karagulle
+Date: July 2023
 """
+
 import os
 import sys
 import pickle
@@ -19,14 +39,21 @@ from preprocess_utils import *  # NOQA
 
 
 def create_arguments():
+    """function to parse arguments"""
     parser = argparse.ArgumentParser(
-        description="The program tests the convergence properties"
+        description="The program conducts human subject studies."
     )
     parser.add_argument(
-        "--no_signals", default=16, type=int, help="Number of traces to be asked to user"
+        "--no_signals",
+        default=16,
+        type=int,
+        help="Number of traces to create questions to the participant",
     )
     parser.add_argument(
-        "--no_samples", default=1000, type=int, help="Nummber of samples for weight sets"
+        "--no_samples",
+        default=1000,
+        type=int,
+        help="Nummber of samples for weight valuations",
     )
     parser.add_argument(
         "--terminating_condition",
@@ -38,13 +65,13 @@ def create_arguments():
         "--no_questions",
         default=12,
         type=int,
-        help=" Number of questions to be asked to user.",
+        help=" Number of questions to be asked to the participant.",
     )
     parser.add_argument(
         "--validation_questions",
         default=0,
         type=int,
-        help=" Number of validation questions to be asked to user.",
+        help=" Number of validation questions to be asked to the participant.",
     )
     parser.add_argument(
         "--experiment",
@@ -56,27 +83,48 @@ def create_arguments():
         "--simulator",
         default=False,
         type=bool,
-        help="True if motion base simulator exists.",
+        help="True if motion base simulator exists, false otherwise.",
     )
     return parser.parse_args()
 
 
 def aPL_experiment(
-    signals,
-    formula,
-    no_samples,
-    threshold_probability,
-    no_questions,
-    validation,
-    filename,
-    question_file,
-    simulator,
-    experiment,
+    signals: tuple,
+    formula: WSTL.WSTL_formula,
+    no_samples: int,
+    threshold_probability: float,
+    no_questions: int,
+    validation: int,
+    filename: str,
+    question_file: str,
+    simulator: bool,
 ):
+    """
+    Takes experiment variables, runs the experiment, saves results to .csv.
 
+    Args:
+        signals (tuple): set of trajectories to be used in the experiment.
+        formula (WSTL_Formula): formula candidate used to assess robustness values
+        no_samples (int): number of weight valuation samples
+        threshold_probability (float): threshold posterior probailibty for termination
+        no_questions (int): maximum number of questions to be asked
+        validation (int): number of validation questions
+        filename (str): file to save the results
+        question_file (str): replayer data for questions
+        simulator (bool): status of the motion base simulator.
+
+    Returns:
+        A .csv file with statistics on the experiment
+    """
+
+    # set the weight valuation sample set
+    formula.set_weights(signals, w_range=[0.1, 1.1], no_samples=no_samples, random=True)
+
+    # set robustness difference bound
     u = 0.36
     rob_diff_bound = -np.log(u / (1 - u))
 
+    # set active learning instance
     aPL_instance = SAPL(
         signals,
         formula=formula,
@@ -85,13 +133,7 @@ def aPL_experiment(
         debug=True,
     )
 
-    if experiment == "overtake":
-        pruned_questions = []
-        for q in aPL_instance.questions:
-            if (q[0] not in [3, 4, 10, 14, 19]) and (q[1] not in [3, 4, 10, 14, 19]):
-                pruned_questions.append(q)
-        aPL_instance.questions = pruned_questions
-
+    # Training
     outputs = aPL_instance.user_experiment(
         simulator, question_file, threshold_probability, no_questions
     )
@@ -105,6 +147,7 @@ def aPL_experiment(
         no_questions_asked,
     ] = outputs
 
+    # Validation
     aligned_validation_questions = 0
     if validation != 0:
         for _ in range(validation):
@@ -136,6 +179,13 @@ def aPL_experiment(
 
 
 def main():
+    """
+    Enters the script.
+    Sets arguments and complete preprocess, then run the experiment.
+
+    Returns:
+        A .csv file with statistics on the experiment
+    """
     args = create_arguments()
 
     no_samples = args.no_samples
@@ -145,16 +195,14 @@ def main():
     validation = args.validation_questions
     simulator = args.simulator
 
+    # read trajectory data
     data_name = f"./data/{args.experiment}_trajectories.pkl"
     with open(data_name, "rb") as f:
         data = pickle.load(f)
 
+    # setup experiment variables
     processed_signals = get_signals(data, experiment)
     phi = get_formula(processed_signals, experiment)
-
-    phi.set_weights(
-        processed_signals, w_range=[0.1, 1.1], no_samples=no_samples, random=True
-    )
 
     filename = f"./results/SAPL_HSS_{experiment}.csv"
     if experiment == "pedestrian":

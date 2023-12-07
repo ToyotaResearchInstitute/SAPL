@@ -1,7 +1,30 @@
 """
+Safe Active Preference Learning (APL) Experiment Script
 
+This script conducts experiments to test the convergence properties of
+the Safe Active Preference Learning (SAPL) framework.
+It uses trajectories and robustness functions to analyze the
+behavior of the framework in various scenarios.
 
+The experiment results are saved in a CSV file named
+'{experiment}_convergence_analysis_unlimited_q.csv'.
+
+Command-line Arguments:
+    - --no_samples: Number of samples for weight sets (default: 1000).
+    - --terminating_condition: Probability limit to end the learning framework
+                               (default: 0.99).
+    - --experiment: Type of experiment
+                    (Options: 'pedestrian', 'overtake'; default: 'overtake').
+    - --repetition: Number of times the test will be repeated (default: 100).
+
+Example:
+    $ python convergence_analysis_unlimited_q.py
+    --no_samples 1000 --terminating_condition 0.99 --experiment overtake --repetition 100
+
+Author: Ruya Karagulle
+Date: September 2023
 """
+
 import os
 import sys
 import pickle
@@ -11,15 +34,21 @@ import random
 import argparse
 import pandas as pd
 
+# Additional dependencies
 cwd = os.getcwd()
 sys.path.insert(0, f"{cwd}/src")
 
-# codebase specific libraries
 from APL_utils import *  # NOQA
 from preprocess_utils import *  # NOQA
 
 
 def create_arguments():
+    """
+    Define command-line arguments for the experiment configuration.
+
+    Returns:
+        argparse.Namespace: Parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser(
         description="The program tests the convergence properties"
     )
@@ -51,14 +80,26 @@ def create_arguments():
 
 
 def aPL_experiment(
-    signals,
-    formula,
-    no_samples,
-    threshold_probability,
-    no_questions,
-    repetition,
-    experiment,
+    signals: tuple,
+    formula: WSTL.WSTL_Formula,
+    no_samples: int,
+    threshold_probability: float,
+    no_questions: int,
+    repetition: int,
+    experiment: str,
 ):
+    """
+    Conduct the SAPL experiment with specified parameters.
+
+    Args:
+        signals: Preprocessed signals.
+        formula: Scaled WSTL formula.
+        no_samples: Number of samples for weight sets.
+        threshold_probability: Probability limit to end the learning framework.
+        no_questions: Number of questions to be asked in the experiment.
+        repetition: Number of times the test will be repeated.
+        experiment: Type of experiment (e.g., 'overtake', 'pedestrian').
+    """
 
     u = 0.4
     rob_diff_bound = -np.log(u / (1 - u))
@@ -92,6 +133,10 @@ def aPL_experiment(
 
 
 def main():
+    """
+    Main entry point for the script.
+    Reads data, initializes experiment parameters, and calls aPL_experiment.
+    """
     args = create_arguments()
     no_questions = 200
 

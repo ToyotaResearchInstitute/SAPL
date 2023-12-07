@@ -1,7 +1,9 @@
 """
-This code runs the preference question asking interface.
-author: Ruya Karagulle
-date: July 2023
+This module runs a GUI to play trajectory videos.
+It takes trajectory numbers and outputs a window with two videos.
+
+Author: Ruya Karagulle
+Date: June 2023
 """
 
 from tkinter import *
@@ -15,20 +17,17 @@ class GUI:
         pass
 
     def trajectory1(self):
-        """
-        Command to be executed when trajectory 1 is selected.
-        """
+        """Command executed when trajectory 1 is selected."""
         self.answer = 0
         self.window.destroy()
 
     def trajectory2(self):
-        """
-        Command to be executed when trajectory 1 is selected.
-        """
+        """Command executed when trajectory 1 is selected."""
         self.answer = 1
         self.window.destroy()
 
     def center_window(self, window, width=700, height=400):
+        """Center the Tkinter window on the screen."""
         # get screen width and height
         screen_width = window.winfo_screenwidth()
         screen_height = window.winfo_screenheight()
@@ -39,14 +38,18 @@ class GUI:
         window.geometry("%dx%d+%d+%d" % (width, height, x, y))
 
     def playVideo_a(self):
+        """Play Trajectory A video."""
         self.player_a.play()
-        # self.player_b.play()
 
     def playVideo_b(self):
-        # self.player_a.play()
+        """Play Trajectory B video."""
         self.player_b.play()
 
     def play_question_videos(self, selected_q):
+        """
+        Display a window with two trajectory videos
+        based on the selected trajectory numbers.
+        """
         self.window = Tk()
         self.window.geometry("1500x600")
         self.center_window(self.window, 1500, 600)
@@ -104,10 +107,10 @@ class GUI:
 
     def plotGUI(self, fig: Figure):
         """
-        It plots the matplotlib Figure to TkInter canvas.0
+        Plots the matplotlib Figure to TkInter canvas.0
 
-        inputs: figure to be shown.
-        output:
+        Args:
+            fig (Figure): matplotlib figure to be plotted
         """
         # Tkinter window and settings
         self.window = Tk()

@@ -1,3 +1,8 @@
+"""
+This module contains tools to ask a given question on the motion base simulator.
+Motion base simulator uses CARLA and ROS2.
+"""
+
 import argparse
 from copy import deepcopy
 from pathlib import Path
@@ -18,6 +23,7 @@ class ReplayerRunData:
 
 
 def load_commands(question, host):
+    """Returns commands to eplayer data."""
     base_command = [
         "ros2",
         "run",

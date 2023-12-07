@@ -1,8 +1,12 @@
 """
-This codebase includes functions related to preference learning framework.
+This module includes classes related to Safe Active Preference Learning framework.
 
-author: Ruya Karagulle
-date: July 2023
+Classes:
+    SAPL: Implements the Safe Active Preference Learning framework.
+    fft_APL: Implements the Active Preference Learning framework using FFT.
+
+Author: Ruya Karagulle
+Date: July 2023
 """
 
 import numpy as np
@@ -21,15 +25,65 @@ torch.set_default_dtype(torch.float64)
 
 
 class SAPL:
+    """
+    Implements the Safe Active Preference Learning (SAPL) framework.
+
+    Attributes:
+        signals: Preprocessed signals.
+        no_samples: Number of samples.
+        questions: List of all possible pairs of indices for questions.
+        robustness: Robustness values for the given formula and signals.
+        formula: Scaled WSTL formula.
+        prior_w: Prior probabilities for weight valuation.
+        debug: Boolean indicating whether debugging is enabled.
+
+    Methods:
+        get_robustness_differences: Computes robustness differences for
+                                    all pairs in the question list.
+        scale_w_samples: Scales up root-layer weights to satisfy a lower threshold
+                         for robustness differences.
+        compute_bradley_terry: Computes Bradley-Terry likelihood functions for all pairs
+                               in the question list.
+        compute_objective: Computes the expected information gain for each pair.
+        query_selection: Selects the next query based on expected information gain.
+        show_trajectories: Plays trajectories on the simulator or as videos.
+        w_update: Posterior update for weight valuation probabilities.
+
+        check_agreement: Computes agreement between two realizations for
+                         a given question list.
+        check_user_agreement: Checks user agreement of a realization.
+
+        convergence: Synthetic experiments to test convergence with
+                     the ground truth weight valuation in the sample set.
+        ood_convergence: Synthetic experiments to test convergence when
+                         the ground truth is out of distribution.
+        noisy_convergence: Synthetic experiments to test convergence
+                           when answers are noisy.
+        random_selection: Synthetic experiments to test convergence
+                          when questions are selected randomly.
+        user_experiment: User experiment, asking questions interactively.
+    """
+
     def __init__(
         self,
-        signals,
-        formula,
-        no_samples,
-        robustness_difference_limit=0,
-        seed=None,
-        debug=False,
+        signals: tuple,
+        formula: WSTL.WSTL_Formula,
+        no_samples: int,
+        robustness_difference_limit: float = 0,
+        seed: int or None = None,
+        debug: bool = False,
     ):
+        """
+        Initializes the SAPL (Safe Active Preference Learning) instance.
+
+        Args:
+            signals (tuple): Preprocessed signals.
+            formula (WSTL.WSTL_Formula): WSTL formula.
+            no_samples (int): Number of samples.
+            robustness_difference_limit (float): Robustness difference limit.
+            seed (int, optional): Seed for reproducibility. Default is None.
+            debug (bool, optional): Debug mode. Default is False.
+        """
 
         assert isinstance(
             formula, WSTL.WSTL_Formula
@@ -56,7 +110,10 @@ class SAPL:
 
     def get_robustness_differences(self):
         """
-        this function computes robustness differences for all pairs in the question list
+        Computes robustness differences for all pairs in the question list.
+
+        Returns:
+            torch.Tensor: Matrix of robustness differences.
         """
         robustness_differences = torch.empty(len(self.questions), self.no_samples)
         for j, q in enumerate(self.questions):
@@ -65,10 +122,19 @@ class SAPL:
             )
         return robustness_differences
 
-    def scale_w_samples(self, formula, robustness_difference_limit):
+    def scale_w_samples(
+        self, formula: WSTL.WSTL_Formula, robustness_difference_limit: float
+    ):
         """
-        this function scales up root-layer weights to satisfy lower threshold for
-        robustness differences
+        Scales up root-layer weights to satisfy lower threshold for
+        robustness differences.
+
+        Args:
+            formula (WSTL.WSTL_Formula): WSTL formula.
+            robustness_difference_limit (float): Robustness difference limit.
+
+        Returns:
+            WSTL.WSTL_Formula: Scaled WSTL formula.
         """
         assert isinstance(
             formula, WSTL.WSTL_Formula
@@ -86,9 +152,16 @@ class SAPL:
 
     def compute_bradley_terry(self):
         """
-        this function computes Bradley-Terry likelihood functions for all pairs in
+        Computes Bradley-Terry likelihood functions for all pairs in
         the question list.
         """
+
+        # Folllowing nested for loop is vectorized in the function body.
+        # above one-liner is equivalent to:
+        # self.probability_bt[:,j,:] = ( ( (1-answers)*exps[q[0], :].unsqueeze(-1)
+        #                                 + answers*exps[q[1], :].unsqueeze(-1)).T
+        #                                 / (exps[q[0], :] + exps[q[1], :])).T
+
         self.probability_bt = torch.empty(self.no_samples, len(self.questions), 2)
         answers = torch.tensor([0, 1])
 
@@ -99,25 +172,23 @@ class SAPL:
 
             self.probability_bt[:, j, :] = (exp + (answers) * (1 - exp)) / (1 + exp)
 
-            # above one-liner is equivalent to:
-            # self.probability_bt[:,j,:] = ( ( (1-answers)*exps[q[0], :].unsqueeze(-1)
-            #                                + answers*exps[q[1], :].unsqueeze(-1)).T
-            #                                / (exps[q[0], :] + exps[q[1], :])).T
-
     def compute_objective(self):
         """
-        This computes the expected information gain for each pair.
+        Computes the expected information gain for each pair.
 
-        For future sanity checks, the folllowing nested for loop is
-        vectorized in this code.
-        for k in range(len(self.questions)):
-            q_cost[k] = 0
-            for w in range(self.no_samples):
-                for answer in [0,1]:
-                    q_cost[k] += self.p_bt[w,k,answer]*self.prior_w[w]
-                                  *torch.log2(self.p_bt[w,k,answer]/
-                                  torch.sum(self.p_bt[:, k, answer]*self.prior_w))
+        Returns:
+            torch.Tensor: Expected information gain for each pair.
         """
+
+        # Folllowing nested for loop isvectorized in the function body.
+        # for k in range(len(self.questions)):
+        #     q_cost[k] = 0
+        #     for w in range(self.no_samples):
+        #         for answer in [0,1]:
+        #             q_cost[k] += self.p_bt[w,k,answer]*self.prior_w[w]
+        #                           *torch.log2(self.p_bt[w,k,answer]/
+        #                           torch.sum(self.p_bt[:, k, answer]*self.prior_w))
+
         self.compute_bradley_terry()
         q_cost = torch.empty(len(self.questions))
         q_cost = torch.sum(
@@ -137,18 +208,29 @@ class SAPL:
 
     def query_selection(self):
         """
-        this function selects the next query based on expected information gain
+        Selects the next query based on expected information gain.
+
+        Returns:
+            Tuple[Tuple[int, int], int]: Selected query and its index.
         """
         loss = self.compute_objective()
         q = torch.argmax(loss)
         return self.questions[q], q
 
-    def show_trajectories(self, simulator, selected_q, question_file=None):
+    def show_trajectories(
+        self, simulator: bool, selected_q: tuple, question_file: str or None = None
+    ):
         """
-        thsi function plays trajectories.
-        if the simulator is set True, it connects it.
-        else it plays trajectories as videos.
-        it also asks users their answer.
+        Plays trajectories.
+
+        Args:
+            simulator (bool): If True, connects to the simulator (requires host name).
+            selected_q (Tuple[int, int]): Selected query.
+            question_file (str, optional): Path to the question file for simulator mode.
+
+        Returns:
+            int: User's answer indicating the preferred trajectory.
+
         """
         idx_signals = np.arange(WSTL.get_input_length(self.signals))
         qs = list(it.combinations(idx_signals, 2))
@@ -168,9 +250,17 @@ class SAPL:
         answer = input("which trajectory do you prefer?")
         return int(answer)
 
-    def w_update(self, q_index, answer):
+    def w_update(self, q_index: int, answer: int):
         """
-        posterior update for weight valuation probabilities
+        Posterior update for weight valuation probabilities.
+
+        Args:
+            q_index (int): Index of the selected query.
+            answer (int): User's answer indicating the preferred trajectory.
+
+        Returns:
+            torch.Tensor: Updated weight valuation probabilities.
+
         """
         next_w = (
             self.probability_bt[:, q_index, answer]
@@ -179,10 +269,20 @@ class SAPL:
         )
         return next_w
 
-    def check_agreement(self, w_idx1, w_idx2, qs=None):
+    def check_agreement(
+        self, w_idx1: int, w_idx2: int, qs: list[tuple[int, int]] or None = None
+    ):
+        """Computes agreement between two realizations for a given question list.
+
+        Args:
+            w_idx1 (int): Index of the first weight valuation.
+            w_idx2 (int): Index of the second weight valuation.
+            qs (list, optional): List of question indices. Default is None.
+
+        Returns:
+            float: Agreement score between the two realizations.
         """
-        ths function computes agreement between two realization for a given question list.
-        """
+
         if qs is None:
             idx_signals = np.arange(WSTL.get_input_length(self.signals))
             qs = list(it.combinations(idx_signals, 2))
@@ -197,10 +297,20 @@ class SAPL:
                 correct_order += 1
         return correct_order / len(qs)
 
-    def check_user_agreement(self, w_idx1, answers, qs=None):
+    def check_user_agreement(
+        self, w_idx1: int, answers: list, qs: list[tuple[int, int]] or None = None
+    ):
+        """Checks user agreement of a realization.
+
+        Args:
+            w_idx1 (int): Index of the weight valuation.
+            answers (List[int]): User's answers for a set of questions.
+            qs (list, optional): List of question indices. Default is None.
+
+        Returns:
+            float: Agreement score between the user and the weight valuation.
         """
-        this function checks user agreement of a realization.
-        """
+
         if qs is None:
             idx_signals = np.arange(WSTL.get_input_length(self.signals))
             qs = list(it.combinations(idx_signals, 2))
@@ -214,7 +324,22 @@ class SAPL:
         return correct_order / len(qs)
 
     # --- EXPERIMENTS ---
-    def convergence(self, threshold_w, max_questions, w_final):
+    def convergence(self, threshold_w: float, max_questions: int, w_final: int):
+        """
+        Synthetic experiments to test convergence. In this setup,
+        as the ground truth weight valuation is in the sample set,
+        it checks the convergence to to the ground truth and returns
+        statistics.
+
+        Args:
+            threshold_w (float): Convergence threshold for the maximum weight probability.
+            max_questions (int): Maximum number of questions to ask.
+            w_final (int): Index of the ground truth weight valuation.
+
+        Returns:
+            Dict: Convergence statistics.
+
+        """
         max_w = torch.max(self.prior_w)
         max_w_list = [max_w]
         questions_asked = 0
@@ -265,7 +390,22 @@ class SAPL:
             "no_questions_agreed": q_agreed,
         }
 
-    def ood_convergence(self, threshold_w, max_questions, correct_robustness):
+    def ood_convergence(
+        self, threshold_w: float, max_questions: int, correct_robustness: torch.Tensor
+    ):
+        """
+        Synthetic experiments to test convergence when the ground truth is
+        out of distribution.
+
+        Args:
+            threshold_w (float): Convergence threshold for the maximum weight probability.
+            max_questions (int): Maximum number of questions to ask.
+            correct_robustness (torch.Tensor): Robustness with the correct valuation.
+
+        Returns:
+            Dict: Convergence statistics.
+
+        """
         max_w = torch.max(self.prior_w)
         max_w_list = [max_w]
         questions_asked = 0
@@ -322,7 +462,19 @@ class SAPL:
             "no_questions_agreed": q_agreed,
         }
 
-    def noisy_convergence(self, threshold_w, max_questions, w_final):
+    def noisy_convergence(self, threshold_w: float, max_questions: int, w_final: int):
+        """
+        Synthetic experiments to test convergence when answers are noisy.
+
+        Args:
+            threshold_w (float): Convergence threshold for the maximum weight probability.
+            max_questions (int): Maximum number of questions to ask.
+            w_final (int): Index of the ground truth weight valuation.
+
+        Returns:
+            Dict: Convergence statistics.
+
+        """
         max_w = torch.max(self.prior_w)
         max_w_list = [max_w]
         questions_asked = 0
@@ -382,7 +534,20 @@ class SAPL:
             "no_questions_agreed": q_agreed,
         }
 
-    def random_selection(self, threshold_w, w_final, random=False):
+    def random_selection(self, threshold_w: float, w_final: int, random: bool = False):
+        """
+        Synthetic experiments to test convergence when questions are selected randomly.
+
+        Args:
+            threshold_w (float): Convergence threshold for the maximum weight probability.
+            w_final (int): Index of the ground truth weight valuation.
+            random (bool, optional): If True, questions are selected randomly.
+                                     Default is False.
+
+        Returns:
+            Dict: Convergence statistics.
+
+        """
         max_w = torch.max(self.prior_w)
         max_w_list = [max_w]
         questions_asked = 0
@@ -430,7 +595,22 @@ class SAPL:
             "no_questions_agreed": q_agreed,
         }
 
-    def user_experiment(self, simulator, question_file, threshold_w, max_questions):
+    def user_experiment(
+        self, simulator: bool, question_file: str, threshold_w: float, max_questions: int
+    ):
+        """
+        User experiment. It asks questions interactively.
+
+        Args:
+            simulator (bool): If True, connects to the simulator (requires host name).
+            question_file (str): Path to the question file for simulator mode.
+            threshold_w (float): Convergence threshold for the maximum probability.
+            max_questions (int): Maximum number of questions to ask.
+
+        Returns:
+            Tuple: User experiment results.
+
+        """
         max_w = torch.max(self.prior_w)
         questions_asked = 0
         w_star_idx = 0
@@ -474,7 +654,48 @@ class SAPL:
 
 
 class fft_APL:
-    def __init__(self, signals, formula, no_samples, seed=None, debug=False):
+    """
+    Implements Active Preference Learning using Fast Fourier Transform (FFT).
+
+    Attributes:
+        signals: Preprocessed signals.
+        no_samples: Number of samples.
+        questions: List of all possible pairs of indices for questions.
+        robustness: Robustness values for the given formula and signals.
+        prior_w: Prior probabilities for weight valuation.
+        debug: Boolean indicating whether debugging is enabled.
+
+    Methods:
+        bradley_terry_w_fft: Computes Bradley-Terry likelihood functions using
+                             FFT for all pairs in the question list.
+        fft_query_selection: Selects the next query based on FFT
+                             expected information gain.
+        compute_fft_objective: Computes the expected information gain
+                               for each pair using FFT.
+        w_update_fft: Posterior update for weight valuation probabilities using FFT.
+        check_fft_user_agreement: Checks user agreement of a realization using FFT.
+        BTfft: Active preference learning experiment using FFT.
+
+    """
+
+    def __init__(
+        self,
+        signals: tuple,
+        formula: WSTL.WSTL_Formula,
+        no_samples: int,
+        seed: int or None = None,
+        debug: bool = False,
+    ):
+        """
+        Initializes the fft_APL (Active Preference Learning using FFT) instance.
+
+        Args:
+            signals (tuple): Preprocessed signals.
+            formula (WSTL.WSTL_Formula): WSTL formula.
+            no_samples (int): Number of samples.
+            seed (int, optional): Seed for reproducibility. Default is None.
+            debug (bool, optional): Debug mode. Default is False.
+        """
         assert isinstance(
             formula, WSTL.WSTL_Formula
         ), "Formula needs to be an WSTL formula."
@@ -495,10 +716,13 @@ class fft_APL:
         self.prior_w = 1 / no_samples * torch.ones(no_samples)
         self.debug = debug
 
-    def bradley_terry_w_fft(self, w_set):
+    def bradley_terry_w_fft(self, w_set: np.array):
         """
-        this function computes Bradley-Terry likelihood functions for all pairs in
-        the question list.
+        Takes fft of the signal and computes Bradley-Terry likelihood functions
+        for all pairs in the question list.
+
+        Args:
+            w_set: Set of weights.
         """
         self.probability_bt_fft = torch.empty(self.no_samples, len(self.questions), 2)
         answers = torch.tensor([0, 1])
@@ -529,25 +753,30 @@ class fft_APL:
             exp = torch.exp(fft_diff).unsqueeze(-1)
             self.probability_bt_fft[:, j, :] = (exp + (answers) * (1 - exp)) / (1 + exp)
 
-    def fft_query_selection(self, w_set):
+    def fft_query_selection(self, w_set: np.array):
+        """
+        Selects the next query based on FFT expected information gain.
+
+        Args:
+            w_set: Set of weights.
+
+        Returns:
+            Tuple: Selected query and its index.
+        """
         loss = self.compute_fft_objective(w_set)
         q = torch.argmax(loss)
 
         return self.questions[q], q
 
-    def compute_fft_objective(self, w_set):
+    def compute_fft_objective(self, w_set: np.array):
         """
-        This computes the expected information gain for each pair.
+        Computes the expected information gain for each pair.
 
-        For future sanity checks, the folllowing nested for loop
-        is vectorized in this code.
-        for k in range(len(self.questions)):
-            q_cost[k] = 0
-            for w in range(self.no_samples):
-                for answer in [0,1]:
-                    q_cost[k] += self.p_bt[w,k,answer]*self.prior_w[w]
-                                  *torch.log2(self.p_bt[w,k,answer]/
-                                  torch.sum(self.p_bt[:, k, answer]*self.prior_w))
+        Args:
+            w_set: Set of weights.
+
+        Returns:
+            torch.Tensor: Expected information gain for each pair.
         """
         self.bradley_terry_w_fft(w_set)
         q_cost = torch.empty(len(self.questions))
@@ -567,9 +796,15 @@ class fft_APL:
 
         return q_cost
 
-    def w_update_fft(self, q_index, answer):
-        """
-        posterior update for weight valuation probabilities
+    def w_update_fft(self, q_index: int, answer: int):
+        """Updates posteriors for weight valuation probabilities
+
+        Args:
+            q_index (int): Index of the selected query.
+            answer (int): User's answer indicating the preferred trajectory.
+
+        Returns:
+            torch.Tensor: Updated weight valuation probabilities.
         """
         next_w = (
             self.probability_bt_fft[:, q_index, answer]
@@ -578,9 +813,19 @@ class fft_APL:
         )
         return next_w
 
-    def check_fft_user_agreement(self, w_idx1, answers, qs=None):
+    def check_fft_user_agreement(
+        self, w_idx1: int, answers: int, qs: list or None = None
+    ):
         """
-        this function checks user agreement of a realization.
+        Checks user agreement of a realization.
+
+        Args:
+            w_idx1 (int): Index of the weight valuation.
+            answers (List[int]): User's answers for a set of questions.
+            qs (List, optional): List of question indices. Default is None.
+
+        Returns:
+            float: Agreement score between the user and the weight valuation.
         """
         if qs is None:
             idx_signals = np.arange(WSTL.get_input_length(self.signals))
@@ -595,8 +840,27 @@ class fft_APL:
         return correct_order / len(qs)
 
     def BTfft(
-        self, fft_w_set, threshold_w, max_questions, correct_robustness, noise=False
+        self,
+        fft_w_set: np.array,
+        threshold_w: float,
+        max_questions: int,
+        correct_robustness: torch.Tensor,
+        noise: bool = False,
     ):
+        """
+        Active preference learning experiment using FFT.
+
+        Args:
+            fft_w_set: Set of weights.
+            threshold_w (float): Convergence threshold for the maximum weight probability.
+            max_questions (int): Maximum number of questions to ask.
+            correct_robustness (torch.Tensor): Robustness for the correct valuation.
+            noise (bool, optional): If True, introduces noise to answers.
+                                    Default is False.
+
+        Returns:
+            Tuple[int, Dict[str, Union[int, float]]]: Experiment results.
+        """
         self.prior_w = 1 / fft_w_set.shape[1] * torch.ones(fft_w_set.shape[1])
         idx_signals = np.arange(WSTL.get_input_length(self.signals))
         self.questions = list(it.combinations(idx_signals, 2))

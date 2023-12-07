@@ -1,7 +1,15 @@
 """
 Utils functions for preprocess signals and formulas.
-These are scenario dependent functions.
+These are scenario dependent functions and only defined for
+scenarios in the paper.
+
+Import these functions and use them to prepare signals
+and create WSTL formulas for specific scenarios.
+
+Author: Ruya Karagulle
+Date: May 2023
 """
+
 import numpy as np
 
 from APL_utils import *
@@ -11,16 +19,15 @@ from WSTL import Expression
 
 def get_formula(processed_signals, experiment):
     """
-    get_formula returns WSTL formulas of scenarios.
+    Returns a WSTL formula of representing scenario specifications.
+     Args:
+        processed_signals (tuple): Tuple of signals for WSTL_formula computation.
+        experiment (str): The type of experiment.
 
-    --inputs:
-    experiment: the experiment type
-    processed_signals: tuple of signals to be used in
-    WSTL_formula computation (refer to WSTL.py)
-
-    --output:
-    phi: WSTL_formula
+    Returns:
+        WSTL_formula: The formulated WSTL scenario.
     """
+
     if experiment == "pedestrian":
         # speed = Expression( 'speed' ,processed_signals[1])
         distance = Expression("distance", processed_signals[0])
@@ -55,10 +62,6 @@ def get_formula(processed_signals, experiment):
             ),
             subformula2=WSTL.Always(relative_velocity >= 0),
         )
-
-        # phi_comforts, augmented_inputs = get_comfort_preferences(speed,
-        # processed_signals[1])
-
         phi = WSTL.And(
             subformula1=WSTL.And(subformula1=phi1, subformula2=phi2),
             subformula2=phi_trivial,
@@ -68,17 +71,18 @@ def get_formula(processed_signals, experiment):
 
 def get_signals(data, experiment, N=None, max_length=None):
     """
-    get_signals processes and returns the correct tuple of signals
-    format for given experiments.
+    Prepares a tuple of signals suitable for WSTL formula robustness computation.
 
-    ---inputs:
-    data: raw signal data
-    experiment: scenario name
-    N: number of signals to be set
+    Args:
+        data (list): Raw signal data.
+        experiment (str): Name of the scenario.
+        N (int, optional): Number of signals to set.
+        max_length (int, optional): Maximum length of signals.
 
-    ---output:
-    tuple of signals to be used in WSTL formula robustness computation
+    Returns:
+        tuple: Tuple of signals formatted for WSTL formula computation.
     """
+
     ego_data = []
     ado_data = []
     for k in range(len(data["ego_trajectory"])):
@@ -250,14 +254,14 @@ def get_signals(data, experiment, N=None, max_length=None):
 
 def get_final_w_set(formula, idx):
     """
-    this function returns the weight valuation specified by its index in sample set.
+    Returns the weight valuation specified by its index in sample set.
 
-    ---inputs:
-    formula: formula that weight valuations are tied to
-    idx: index for the specified weight valuation
+    Args:
+        formula (WSTL_formula): Formula with associated weight valuations.
+        idx (int): Index of the specified weight valuation.
 
-    ---output:
-    final_w: weight valuation at index idx
+    Returns:
+        dict: Weight valuation at the specified index.
     """
     final_w = {}
     for key in formula.weights.keys():
@@ -280,6 +284,17 @@ def get_pruned_data(data, experiment):
 
 
 def remove_true_sample(formula, w_idx):
+    """
+    Removes selected weight valuation sample from the set of samples.
+
+    Args:
+        formula (WSTL_formula): Formula containing weight valuations.
+        w_idx (int): Index of the weight valuation sample to be removed.
+
+    Returns:
+        WSTL_formula: Updated formula after removing the specified sample.
+    """
+
     for key in formula.weights.keys():
         formula.weights[key] = torch.cat(
             (formula.weights[key][:, :w_idx], formula.weights[key][:, w_idx + 1 :]),
