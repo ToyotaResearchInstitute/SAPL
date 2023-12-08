@@ -139,7 +139,7 @@ class WSTL_Formula(torch.nn.Module):
         """
         self.weight_update()
 
-    def forward(self, formula, inputs, **kwargs):
+    def forward(formula, inputs, **kwargs):
         """
         Computes weighted robustness for input signals and for all weight valuations.
 
@@ -357,7 +357,7 @@ class Logic_Operator(WSTL_Formula):
 class Predicate(WSTL_Formula):
     """Defines predicates."""
 
-    def __init__(self, lhs, val):
+    def __init__(self, lhs, val=0):
         """
         Initialize a Predicate.
 
@@ -1150,11 +1150,29 @@ class Eventually(Temporal_Operator):
 
 
 class Until(WSTL_Formula):
+    """
+    Defines Until operator. Until needs two subformulas and an interval.
+    If interval is not defined then it is accepted as [0,inf).
+
+    Attributes:
+        subformula1 (WSTL_Formula): The first subformula
+        subformula2 (WSTL_Formula): The second subformula.
+        interval (Interval): The interval over which the operator is evaluated.
+
+    Methods:
+        weight_assignment: Assigns weight values for the Until operator.
+        weight_update: Updates weights in the subformulas.
+        robustness_value: Computes the robustness value for given inputs.
+        compute_weights: Assigns weight values for the Until operator.
+        compute_robustness: Computes the robustness for a given trace.
+
+    """
+
     def __init__(self, subformula1, subformula2, interval=None):
         super(Until, self).__init__()
         self.subformula1 = subformula1
         self.subformula2 = subformula2
-        self.interval = interval
+        self.interval = Interval(interval)
 
         assert isinstance(
             self.subformula1, WSTL_Formula
@@ -1163,14 +1181,32 @@ class Until(WSTL_Formula):
             self.subformula2, WSTL_Formula
         ), "Subformula2 needs to be an STL formula."
 
-    def weight_assignment(self, inputs, random, **kwargs):
+    def weight_assignment(self, inputs, w_range, no_samples, random, **kwargs):
+        """
+        Assigns weight values for the Until operator.
+
+        Args:
+            inputs (tuple): Input signals for the subformulas.
+            w_range (tuple): The range within which weight values are generated.
+            no_samples (int): The number of samples for weight values.
+            random (bool): If True, generates random weight values;
+                           otherwise, uses 1 weights.
+            **kwargs: Additional keyword arguments.
+        """
+
         try:
             sc = kwargs["scale"]
         except KeyError:
             sc = -1
 
-        self.subformula1.weight_assignment(inputs[0], random)
-        self.subformula2.weight_assignment(inputs[1], random)
+        # self.compute_weights(w_range, no_samples, random)
+
+        self.subformula1.weight_assignment(
+            inputs[0], w_range, no_samples, random, **kwargs
+        )
+        self.subformula2.weight_assignment(
+            inputs[1], w_range, no_samples, random, **kwargs
+        )
         for keys in self.subformula1.weights.keys():
             self.weights[keys] = self.subformula1.weights[keys]
         for keys in self.subformula2.weights.keys():
@@ -1178,11 +1214,12 @@ class Until(WSTL_Formula):
 
         trace1 = self.subformula1(inputs[0], scale=sc)
         trace2 = self.subformula2(inputs[1], scale=sc)
-        trace_length = min(trace1.shape[1], trace2.shape[1])
+        self.interval.set_interval(min(trace1.shape[1], trace2.shape[1]))
 
-        return self.compute_weights(trace_length, random)
+        return self.compute_weights(w_range, no_samples, random)
 
     def weight_update(self):
+        """Updates weights in the subformulas based on the Until operator's weights."""
         for keys in self.subformula1.weights.keys():
             self.subformula1.weights[keys] = self.weights[keys]
         for keys in self.subformula2.weights.keys():
@@ -1191,6 +1228,17 @@ class Until(WSTL_Formula):
         self.subformula2.weight_update()
 
     def robustness_value(self, inputs, **kwargs):
+        """
+        Computes the robustness value of the Until operator for given inputs.
+
+        Args:
+            inputs (tuple): Input signals for the subformulas.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            torch.Tensor: The computed robustness value.
+
+        """
         try:
             sc = kwargs["scale"]
         except KeyError:
@@ -1205,76 +1253,19 @@ class Until(WSTL_Formula):
 
         return self.compute_robustness(trace, scale=sc)
 
-    def compute_weights(self, input_shape, random):
-        if self.interval is None:
-            if random:
-                self.weights[
-                    "("
-                    + str(self.subformula1).replace(".", "")
-                    + ")"
-                    + " U "
-                    + "("
-                    + str(self.subformula2).replace(".", "")
-                    + ")"
-                ] = torch.nn.Parameter(
-                    0.01
-                    + 1.49
-                    * torch.rand(
-                        size=(2, input_shape), dtype=torch.float, requires_grad=True
-                    )
-                )
-            else:
-                self.weights[
-                    "("
-                    + str(self.subformula1).replace(".", "")
-                    + ")"
-                    + " U "
-                    + "("
-                    + str(self.subformula2).replace(".", "")
-                    + ")"
-                ] = torch.nn.Parameter(
-                    torch.tensor(
-                        [[1, 1]] * input_shape, dtype=torch.float, requires_grad=True
-                    )
-                )
-        else:
-            if random:
-                self.weights[
-                    "("
-                    + str(self.subformula1).replace(".", "")
-                    + ")"
-                    + " U "
-                    + "("
-                    + str(self.subformula2).replace(".", "")
-                    + ")"
-                ] = torch.nn.Parameter(
-                    0.01
-                    + 1.49
-                    * torch.randint(
-                        size=(2, input_shape - self.interval[0]),
-                        dtype=torch.float,
-                        requires_grad=True,
-                    )
-                )
-            else:
-                self.weights[
-                    "("
-                    + str(self.subformula1).replace(".", "")
-                    + ")"
-                    + " U "
-                    + "("
-                    + str(self.subformula2).replace(".", "")
-                    + ")"
-                ] = torch.nn.Parameter(
-                    torch.tensor(
-                        [[1, 1]] * (input_shape - self.interval[0]),
-                        dtype=torch.float,
-                        requires_grad=True,
-                    )
-                )
+    def compute_weights(self, w_range, no_samples, random):
+        """
+        Assigns weight values for the Until operator.
 
-    def compute_robustness(self, x, scale=-1):
-        w = torch.reshape(
+        Args:
+            w_range (tuple): The range within which weight values are generated.
+            no_samples (int): The number of samples for weight values.
+            random (bool): If True, generates random weight values;
+                           otherwise, uses uniform weights.
+
+        """
+        interval_length = self.interval.value[1] - self.interval.value[0] + 1
+        if random:
             self.weights[
                 "("
                 + str(self.subformula1).replace(".", "")
@@ -1283,55 +1274,83 @@ class Until(WSTL_Formula):
                 + "("
                 + str(self.subformula2).replace(".", "")
                 + ")"
-            ],
-            (-1, 2),
-        )
-        output_ = torch.Tensor()
+            ] = torch.nn.Parameter(
+                w_range[0]
+                + (w_range[1] - w_range[0])
+                * torch.rand(
+                    size=(2, interval_length, no_samples),
+                    dtype=torch.float,
+                    requires_grad=True,
+                )
+            )
+        else:
+            self.weights[
+                "("
+                + str(self.subformula1).replace(".", "")
+                + ")"
+                + " U "
+                + "("
+                + str(self.subformula2).replace(".", "")
+                + ")"
+            ] = torch.nn.Parameter(
+                torch.ones(
+                    size=(2, interval_length, no_samples),
+                    dtype=torch.float,
+                    requires_grad=True,
+                )
+            )
+
+    def compute_robustness(self, trace, scale=-1):
+        """
+        Computes the weighted robustness of the Until operator for a given trace.
+
+        Args:
+            trace (torch.Tensor): The input trace for computing robustness.
+            scale (float): Scaling factor for the computation.
+
+        Returns:
+            torch.Tensor: The computed robustness.
+
+        """
+        w = self.weights[
+            "("
+            + str(self.subformula1).replace(".", "")
+            + ")"
+            + " U "
+            + "("
+            + str(self.subformula2).replace(".", "")
+            + ")"
+        ]
+
+        _output = torch.Tensor()
 
         mins = Minish()
         maxs = Maxish()
 
-        if self.interval is None:
-            for i in range(x.shape[1] - 2):
-                internal_trace = torch.Tensor()
-                for k in range(i + 1, x.shape[1]):
-                    internal_min = mins(x[:, i:k, 0], scale)
-                    min_compare = torch.cat(
-                        (
-                            x[:, k, 1].reshape(x.shape[0], 1, 1),
-                            internal_min.reshape(internal_min.shape[0], 1, 1),
-                        ),
-                        axis=1,
-                    )
-                    internal_trace = torch.cat(
-                        (
-                            internal_trace,
-                            mins(w[k, :].reshape(-1, 1) * min_compare, scale),
-                        ),
-                        axis=1,
-                    )
-                output_ = torch.cat((output_, maxs(internal_trace, scale)), axis=1)
-        else:
-            for i in range(x.shape[1] - self.interval[1]):
-                internal_trace = torch.Tensor()
-                for k in range(i + self.interval[0], i + self.interval[1] + 1):
-                    internal_min = mins(x[:, i:k, 0], scale)
-                    min_compare = torch.cat(
-                        (
-                            x[:, k, 1].reshape(x.shape[0], 1, 1),
-                            internal_min.reshape(internal_min.shape[0], 1, 1),
-                        ),
-                        axis=1,
-                    )
-                    internal_trace = torch.cat(
-                        (
-                            internal_trace,
-                            mins(w[i, :].reshape(-1, 1) * min_compare, scale),
-                        ),
-                        axis=1,
-                    )
-                output_ = torch.cat((output_, maxs(internal_trace, scale)), axis=1)
-        return output_
+        for i in range(trace.shape[1] - self.interval.value[0]):
+            trace_lb = i + self.interval.value[0]
+            internal_trace = torch.Tensor()
+            for k in range(trace_lb, min(trace.shape[1], i + self.interval.value[1])):
+                internal_min = mins(trace[:, trace_lb : k + 1, :, 0], scale, axis=1)
+                min_compare = torch.cat(
+                    (
+                        trace[:, k, :, 1].reshape(trace.shape[0], 1, trace.shape[2]),
+                        internal_min.reshape(internal_min.shape[0], 1, trace.shape[2]),
+                    ),
+                    axis=1,
+                )
+                internal_trace = torch.cat(
+                    (
+                        internal_trace,
+                        mins(w[:, k - trace_lb, :] * min_compare, scale, axis=1),
+                    ),
+                    axis=1,
+                )
+            _output = torch.cat(
+                (_output, maxs(internal_trace, scale, axis=1).unsqueeze(-1)), axis=1
+            )
+
+        return _output
 
     def __str__(self):
         if self.interval is None:
