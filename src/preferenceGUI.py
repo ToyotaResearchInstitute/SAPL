@@ -45,7 +45,7 @@ class GUI:
         """Play Trajectory B video."""
         self.player_b.play()
 
-    def play_question_videos(self, selected_q):
+    def play_question_videos(self, question_file, selected_q):
         """
         Display a window with two trajectory videos
         based on the selected trajectory numbers.
@@ -56,13 +56,13 @@ class GUI:
         self.window.title("Driving Behavior Preferences")
 
         filename_a = (
-            "./video_splits/trajectory_"
-            + f"{selected_q[0]}/trajectory_{selected_q[0]}"
+            question_file
+            + f"/trajectory_{selected_q[0]}/trajectory_{selected_q[0]}"
             + ".avi"
         )
         filename_b = (
-            "./video_splits/trajectory_"
-            + f"{selected_q[1]}/trajectory_{selected_q[1]}"
+            question_file
+            + f"/trajectory_{selected_q[1]}/trajectory_{selected_q[1]}"
             + ".avi"
         )
         size_adjust = 0.75

@@ -205,10 +205,10 @@ def main():
     phi = get_formula(processed_signals, experiment)
 
     filename = f"./results/SAPL_HSS_{experiment}.csv"
-    if experiment == "pedestrian":
+    if simulator:
         question_file = f"./data/{experiment}_question.csv"
-    elif experiment == "overtake":
-        question_file = f"./data/{experiment}_question_filtered.csv"
+    else:
+        question_file = f"/Users/rkaragulle/Documents/replayer_data/{experiment}"
 
     aPL_experiment(
         processed_signals,
