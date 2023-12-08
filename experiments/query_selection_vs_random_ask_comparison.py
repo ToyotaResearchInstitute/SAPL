@@ -154,7 +154,6 @@ def main():
     with open(data_name, "rb") as f:
         data = pickle.load(f)
 
-    data = get_pruned_data(data, experiment)
     processed_signals = get_signals(data, experiment)
     phi = get_formula(processed_signals, experiment)
 

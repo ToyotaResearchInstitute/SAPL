@@ -218,7 +218,10 @@ class SAPL:
         return self.questions[q], q
 
     def show_trajectories(
-        self, simulator: bool, selected_q: tuple, question_file: str or None = None
+        self,
+        simulator: bool,
+        selected_q: tuple,
+        question_file: str or None = None,
     ):
         """
         Plays trajectories.
@@ -245,7 +248,7 @@ class SAPL:
             )
         else:
             # replays trajectories as videos.
-            preferenceGUI.GUI().play_question_videos(selected_q)
+            preferenceGUI.GUI().play_question_videos(question_file, selected_q)
 
         answer = input("which trajectory do you prefer?")
         return int(answer)

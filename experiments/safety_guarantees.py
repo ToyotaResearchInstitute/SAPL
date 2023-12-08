@@ -221,7 +221,6 @@ def main():
     zero_rob_data["ego_trajectory"].append(data["ego_trajectory"][10])
     zero_rob_data["ado_trajectory"].append(data["ego_trajectory"][10])
 
-    data = get_pruned_data(data, experiment)
     processed_signals = get_signals(data, experiment)
     zero_rob_processed_signal = get_signals(zero_rob_data, experiment, max_length=178)
     phi = get_formula(processed_signals, experiment)

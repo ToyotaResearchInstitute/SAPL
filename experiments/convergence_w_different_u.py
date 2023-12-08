@@ -160,7 +160,6 @@ def main():
                 data_pruned["ado_trajectory"].append(data["ado_trajectory"][k])
         data = data_pruned
 
-    data = get_pruned_data(data, experiment)
     processed_signals = get_signals(data, experiment)
     phi = get_formula(processed_signals, experiment)
 

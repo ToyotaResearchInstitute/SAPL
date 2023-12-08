@@ -270,19 +270,6 @@ def get_final_w_set(formula, idx):
     return final_w
 
 
-def get_pruned_data(data, experiment):
-    if experiment == "pedestrian":
-        return data
-    elif experiment == "overtake":
-        data_pruned = {"ego_trajectory": [], "ado_trajectory": []}
-        for k in range(len(data)):
-            if k not in [3, 4, 10, 14, 19]:
-                data_pruned["ego_trajectory"].append(data["ego_trajectory"][k])
-                data_pruned["ado_trajectory"].append(data["ado_trajectory"][k])
-        data = data_pruned
-        return data
-
-
 def remove_true_sample(formula, w_idx):
     """
     Removes selected weight valuation sample from the set of samples.
