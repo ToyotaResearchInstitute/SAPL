@@ -90,7 +90,7 @@ def create_arguments():
 
 def aPL_experiment(
     signals: tuple,
-    formula: WSTL.WSTL_formula,
+    formula: WSTL.WSTL_Formula,
     no_samples: int,
     threshold_probability: float,
     no_questions: int,
@@ -220,7 +220,6 @@ def main():
         filename,
         question_file,
         simulator,
-        experiment,
     )
 
 
