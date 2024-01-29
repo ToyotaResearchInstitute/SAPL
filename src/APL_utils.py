@@ -8,7 +8,6 @@ Classes:
 Author: Ruya Karagulle
 Date: July 2023
 """
-
 import numpy as np
 import torch
 import itertools as it

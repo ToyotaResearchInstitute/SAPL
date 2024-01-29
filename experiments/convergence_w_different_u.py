@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """
 Safe Active Preference Learning (APL) Experiment Script
 
@@ -32,10 +33,10 @@ Date: September 2023
 import random
 import os
 import sys
+import argparse
 import pickle
 
 import numpy as np
-import argparse
 import pandas as pd
 
 cwd = os.getcwd()
@@ -90,7 +91,7 @@ def create_arguments():
     return parser.parse_args()
 
 
-def aPL_experiment(
+def apl_experiment(
     signals: tuple,
     formula: WSTL.WSTL_Formula,
     no_samples: int,
@@ -122,56 +123,76 @@ def aPL_experiment(
 
         u = (i + 1) * 0.5 / repetition
         rob_diff_bound = -np.log(u / (1 - u))
-        aPL_instance = SAPL(
+        apl_instance = SAPL(
             signals,
             formula=formula,
             no_samples=no_samples,
             robustness_difference_limit=rob_diff_bound,
             seed=i,
-            debug=True,
         )
         output.append(
-            aPL_instance.convergence(threshold_probability, no_questions, w_final)
+            apl_instance.convergence(threshold_probability, no_questions, w_final)
         )
 
     df = pd.DataFrame(output)
     df.to_csv(
         f"./results/{experiment}_different_u_convergence_analysis.csv", encoding="utf-8"
     )
+    return df
 
 
 def main():
     args = create_arguments()
-    no_samples = args.no_samples
-    threshold_probability = args.terminating_condition
-    no_questions = args.no_questions
-    experiment = args.experiment
-    repetition = args.repetition
 
-    data_name = f"./data/{args.experiment}_trajectories.pkl"
-    with open(data_name, "rb") as f:
-        data = pickle.load(f)
+    if repeatability_evaluation:  # reproduce experiment in Table1 of the paper
+        no_questions = 20
+        no_samples = 1000
+        threshold_probability = 0.99
+        repetition = 100
+        dfs = []
+        for exp in ["pedestrian", "overtake"]:
+            data_name = f"./data/{exp}_trajectories.pkl"
+            with open(data_name, "rb") as f:
+                data = pickle.load(f)
 
-    if experiment == "overtake":
-        data_pruned = {"ego_trajectory": [], "ado_trajectory": []}
-        for k in range(len(data)):
-            if k not in [3, 4, 10, 14, 19]:
-                data_pruned["ego_trajectory"].append(data["ego_trajectory"][k])
-                data_pruned["ado_trajectory"].append(data["ado_trajectory"][k])
-        data = data_pruned
+            processed_signals = get_signals(data, exp)
+            phi = get_formula(processed_signals, exp)
 
-    processed_signals = get_signals(data, experiment)
-    phi = get_formula(processed_signals, experiment)
+            df = apl_experiment(
+                processed_signals,
+                phi,
+                no_samples,
+                threshold_probability,
+                no_questions,
+                repetition,
+                exp,
+            )
+            dfs.append(df)
+        save_stats(repetition)
 
-    aPL_experiment(
-        processed_signals,
-        phi,
-        no_samples,
-        threshold_probability,
-        no_questions,
-        repetition,
-        experiment,
-    )
+    else:
+        no_samples = args.no_samples
+        threshold_probability = args.terminating_condition
+        no_questions = args.no_questions
+        experiment = args.experiment
+        repetition = args.repetition
+
+        data_name = f"./data/{args.experiment}_trajectories.pkl"
+        with open(data_name, "rb") as f:
+            data = pickle.load(f)
+
+        processed_signals = get_signals(data, experiment)
+        phi = get_formula(processed_signals, experiment)
+
+        df = apl_experiment(
+            processed_signals,
+            phi,
+            no_samples,
+            threshold_probability,
+            no_questions,
+            repetition,
+            experiment,
+        )
 
 
 if __name__ == "__main__":
