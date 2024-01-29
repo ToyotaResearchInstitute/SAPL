@@ -3,3 +3,9 @@ src/__pycache__/
 results/
 visuals/
 .DS_store
+Dockerfile
+compose.yaml
+experiment_runner.sh
+.devcontainer
+.dockerignore
+.github
