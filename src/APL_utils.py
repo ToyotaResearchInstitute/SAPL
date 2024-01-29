@@ -181,7 +181,7 @@ class SAPL:
             torch.Tensor: Expected information gain for each pair.
         """
 
-        # Folllowing nested for loop isvectorized in the function body.
+        # Following nested for loop is vectorized in the function body.
         # for k in range(len(self.questions)):
         #     q_cost[k] = 0
         #     for w in range(self.no_samples):
@@ -209,7 +209,7 @@ class SAPL:
 
     def query_selection(self):
         """
-        Selects the next query based on expected information gain.
+        Select the next query based on expected information gain.
 
         Returns:
             Tuple[Tuple[int, int], int]: Selected query and its index.
@@ -225,7 +225,7 @@ class SAPL:
         question_file: str or None = None,
     ):
         """
-        Plays trajectories.
+        Play trajectories.
 
         Args:
             simulator (bool): If True, connects to the simulator (requires host name).
@@ -276,7 +276,7 @@ class SAPL:
     def check_agreement(
         self, w_idx1: int, w_idx2: int, qs: list[tuple[int, int]] or None = None
     ):
-        """Computes agreement between two realizations for a given question list.
+        """Compute agreement between two realizations for a given question list.
 
         Args:
             w_idx1 (int): Index of the first weight valuation.
@@ -304,7 +304,7 @@ class SAPL:
     def check_user_agreement(
         self, w_idx1: int, answers: list, qs: list[tuple[int, int]] or None = None
     ):
-        """Checks user agreement of a realization.
+        """Check user agreement of a realization.
 
         Args:
             w_idx1 (int): Index of the weight valuation.
