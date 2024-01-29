@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """
 Safe Active Preference Learning (APL) Experiment Script
 
@@ -28,6 +29,7 @@ Example:
 Author: Ruya Karagulle
 Date: September 2023
 """
+
 import os
 import sys
 import pickle
@@ -87,10 +89,15 @@ def create_arguments():
         type=int,
         help="number of times the test will be repeated.",
     )
+    parser.add_argument(
+        "--repeatability_evaluation",
+        action="store_true",
+        help="Flag to run the experiment on Table1 of the paper. ",
+    )
     return parser.parse_args()
 
 
-def aPL_experiment(
+def apl_experiment(
     signals: tuple,
     formula: WSTL.WSTL_Formula,
     no_samples: int,
@@ -119,54 +126,149 @@ def aPL_experiment(
         random.seed(i)
         w_final = random.randint(0, no_samples)
         formula.set_weights(
-            signals, w_range=[0.1, 1.1], no_samples=no_samples, random=True
+            signals, w_range=[0.1, 1.1], no_samples=no_samples, random=True, seed=i
         )
 
-        aPL_instance = SAPL(
+        apl_instance = SAPL(
             signals,
             formula=formula,
             no_samples=no_samples,
             robustness_difference_limit=rob_diff_bound,
-            debug=True,
         )
 
         output.append(
-            aPL_instance.noisy_convergence(threshold_probability, no_questions, w_final)
+            apl_instance.noisy_convergence(threshold_probability, no_questions, w_final)
         )
 
     df = pd.DataFrame(output)
     df.to_csv(f"./results/{experiment}_noisy_convergence_analysis.csv", encoding="utf-8")
+    return df
+
+
+def save_stats(dfs, repetition):
+    df = pd.concat(dfs)
+    pedestrian_converged_indices = np.array(
+        [df["converged_w_index"].iloc[k] for k in range(repetition)]
+    )
+    pedestrian_correct_indices = np.array(
+        [df["correct_w_index"].iloc[k] for k in range(repetition)]
+    )
+    pedestrian_train_agreement = 100 * np.array(
+        [df["no_questions_agreed_of_asked"].iloc[k] for k in range(repetition)]
+    )
+    pedestrian_all_agreement = 100 * np.array(
+        [df["no_questions_agreed"].iloc[k] for k in range(repetition)]
+    )
+
+    overtake_converged_indices = np.array(
+        [df["converged_w_index"].iloc[k + repetition] for k in range(repetition)]
+    )
+    overtake_correct_indices = np.array(
+        [df["correct_w_index"].iloc[k + repetition] for k in range(repetition)]
+    )
+    overtake_train_agreement = 100 * np.array(
+        [
+            df["no_questions_agreed_of_asked"].iloc[k + repetition]
+            for k in range(repetition)
+        ]
+    )
+    overtake_all_agreement = 100 * np.array(
+        [df["no_questions_agreed"].iloc[k + repetition] for k in range(repetition)]
+    )
+
+    pedestrian_convergence_rate = (
+        100
+        * sum(pedestrian_converged_indices == pedestrian_correct_indices)
+        / pedestrian_converged_indices.shape[0]
+    )
+
+    overtake_convergence_rate = (
+        100
+        * sum(overtake_converged_indices == overtake_correct_indices)
+        / overtake_converged_indices.shape[0]
+    )
+
+    table = pd.DataFrame()
+    table["Scenario"] = ["Pedestrian", "Overtake"]
+    table["Convergence Rate"] = [pedestrian_convergence_rate, overtake_convergence_rate]
+    table["Minimum Train Agreement"] = [
+        np.min(pedestrian_train_agreement),
+        np.min(overtake_train_agreement),
+    ]
+    table["Maximum Train Agreement"] = [
+        np.max(pedestrian_train_agreement),
+        np.max(overtake_train_agreement),
+    ]
+    table["Minimum Overall Agreement"] = [
+        np.min(pedestrian_all_agreement),
+        np.min(overtake_all_agreement),
+    ]
+    table["Maximum Overall Agreement"] = [
+        np.max(pedestrian_all_agreement),
+        np.max(overtake_all_agreement),
+    ]
+
+    print(table)
+    table.to_csv("./results/SAPL_table2.csv", encoding="utf-8")
 
 
 def main():
     """
     Main entry point for the script.
-    Reads data, initializes experiment parameters, and calls aPL_experiment.
+    Read data, initialize experiment parameters, and call apl_experiment.
 
     """
     args = create_arguments()
-    no_samples = args.no_samples
-    threshold_probability = args.terminating_condition
-    no_questions = args.no_questions
-    experiment = args.experiment
-    repetition = args.repetition
+    repeatability_evaluation = args.repeatability_evaluation
 
-    data_name = f"./data/{args.experiment}_trajectories.pkl"
-    with open(data_name, "rb") as f:
-        data = pickle.load(f)
+    if repeatability_evaluation:  # reproduce experiment in Table1 of the paper
+        no_questions = 12
+        no_samples = 1000
+        threshold_probability = 0.99
+        repetition = 100
+        dfs = []
+        for exp in ["pedestrian", "overtake"]:
+            data_name = f"./data/{exp}_trajectories.pkl"
+            with open(data_name, "rb") as f:
+                data = pickle.load(f)
 
-    processed_signals = get_signals(data, experiment)
-    phi = get_formula(processed_signals, experiment)
+            processed_signals = get_signals(data, exp)
+            phi = get_formula(processed_signals, exp)
 
-    aPL_experiment(
-        processed_signals,
-        phi,
-        no_samples,
-        threshold_probability,
-        no_questions,
-        repetition,
-        experiment,
-    )
+            df = apl_experiment(
+                processed_signals,
+                phi,
+                no_samples,
+                threshold_probability,
+                no_questions,
+                repetition,
+                exp,
+            )
+            dfs.append(df)
+        save_stats(dfs, repetition)
+    else:
+        no_samples = args.no_samples
+        threshold_probability = args.terminating_condition
+        no_questions = args.no_questions
+        experiment = args.experiment
+        repetition = args.repetition
+
+        data_name = f"./data/{experiment}_trajectories.pkl"
+        with open(data_name, "rb") as f:
+            data = pickle.load(f)
+
+        processed_signals = get_signals(data, experiment)
+        phi = get_formula(processed_signals, experiment)
+
+        df = apl_experiment(
+            processed_signals,
+            phi,
+            no_samples,
+            threshold_probability,
+            no_questions,
+            repetition,
+            experiment,
+        )
 
 
 if __name__ == "__main__":

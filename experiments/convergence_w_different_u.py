@@ -38,6 +38,11 @@ import pickle
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
+plt.rc("font", family="serif")
+# plt.rc('text', usetex=True)
+
 
 cwd = os.getcwd()
 sys.path.insert(0, f"{cwd}/src")
@@ -87,7 +92,11 @@ def create_arguments():
         type=int,
         help="number of times the test will be repeated.",
     )
-
+    parser.add_argument(
+        "--repeatability_evaluation",
+        action="store_true",
+        help="Flag to run the experiment on Table1 of the paper. ",
+    )
     return parser.parse_args()
 
 
@@ -116,7 +125,9 @@ def apl_experiment(
     output = []
 
     w_final = random.randint(0, no_samples)
-    formula.set_weights(signals, w_range=[0.1, 1.1], no_samples=no_samples, random=True)
+    formula.set_weights(
+        signals, w_range=[0.1, 1.1], no_samples=no_samples, seed=0, random=True
+    )
 
     for i in range(repetition):
         random.seed(i)
@@ -141,8 +152,130 @@ def apl_experiment(
     return df
 
 
+def save_stats(repetition):
+    colors = ["darkorange", "teal", "crimson"]
+    fig, axs = plt.subplots(2, 1, figsize=(17, 8))
+    alph = 0.8
+    f = 26
+    experiment = ["pedestrian", "overtake"]
+    for i, e in enumerate(experiment):
+        df = pd.read_csv(f"./results/{e}_different_u_convergence_analysis.csv")
+        no_questions = df["no_questions_asked"]
+        correct_ind = df["correct_w_index"]
+        converged_ind = df["converged_w_index"]
+        non_converged_indices = [
+            i for i, x in enumerate(correct_ind != converged_ind) if x
+        ]
+        non_converged_u = (
+            (np.array([i for i, x in enumerate(correct_ind != converged_ind) if x]) + 1)
+            * 0.5
+            / 100
+        )
+        max_of_small_u = [
+            non_converged_u[i]
+            for i, x in enumerate(
+                non_converged_indices == np.arange(len(non_converged_indices))
+            )
+            if x
+        ][-1]
+        min_of_big_u = [
+            non_converged_u[i]
+            for i, x in enumerate(
+                non_converged_indices
+                == np.flip(
+                    np.arange(
+                        max(non_converged_indices),
+                        max(non_converged_indices) - len(non_converged_indices),
+                        -1,
+                    )
+                )
+            )
+            if x
+        ][0]
+
+        train_agreement = df["no_questions_agreed_of_asked"]
+        all_agreement = df["no_questions_agreed"]
+        u = (np.arange(repetition - 1) + 1) * 0.5 / repetition
+        ax_right = axs[i].twinx()  # Create a twin axis sharing the same x-axis
+
+        if i == 0:
+            axs[i].plot(
+                u,
+                train_agreement[:-1],
+                color=colors[0],
+                alpha=alph,
+                linewidth=2,
+                label="Agreement for the training set",
+            )
+            axs[i].plot(
+                u,
+                all_agreement[:-1],
+                color=colors[1],
+                alpha=alph,
+                linewidth=2,
+                label="Agreement for all questions",
+            )
+            ax_right.plot(
+                u, no_questions[:-1], "-.", color=colors[2], alpha=alph, linewidth=2
+            )
+
+        else:
+            axs[i].plot(u, train_agreement[:-1], color=colors[0], alpha=alph, linewidth=2)
+            axs[i].plot(u, all_agreement[:-1], color=colors[1], alpha=alph, linewidth=2)
+            ax_right.plot(
+                u,
+                no_questions[:-1],
+                "-.",
+                color=colors[2],
+                alpha=alph,
+                linewidth=2,
+                label="Number of questions asked",
+            )
+        axs[i].set_xlabel("u limit for the likelihood function", fontsize=f)
+        ax_right.set_ylabel("Questions", fontsize=f)
+        axs[i].fill_between(
+            u,
+            0.6,
+            1,
+            where=(u > max_of_small_u) & (u < min_of_big_u),
+            alpha=0.35,
+            color="pink",
+            label="region of convergence to correct weight valuation",
+        )
+        axs[i].set_ylim([0.6, 1.05])
+        ax_right.set_ylim([4, 21])
+        ax_right.set_yticklabels([5, 10, 15, 20], fontsize=f)
+        axs[i].set_yticklabels([0.6, 0.7, 0.8, 0.9, 1.0], fontsize=f)
+        axs[i].set_xlim([0, 0.5])
+        axs[i].set_xticklabels([0, 0.1, 0.2, 0.3, 0.4, 0.5], fontsize=f)
+        ax_right.set_yticks([5, 10, 15, 20])
+        axs[i].set_ylabel("User Agreement", fontsize=f)
+        # axs[i].set_title(f'the {e} scenario',  pad=20, loc='right')
+        axs[i].set_title(f"the {e} scenario", fontsize=f, loc="left")
+
+        handles1, labels1 = axs[0].get_legend_handles_labels()
+        handles2, labels2 = ax_right.get_legend_handles_labels()
+
+    fig.legend(
+        handles=handles1 + handles2,
+        labels=labels1 + labels2,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.02),
+        ncol=2,
+        fontsize=f - 1,
+    )
+    axs[0].set_position([0.13, 0.62, 0.77, 0.385])  # [left, bottom, width, height]
+    axs[1].set_position([0.13, 0.12, 0.77, 0.385])  # [left, bottom, width, height]
+
+    # axs[0].legend(loc='upper center', bbox_to_anchor=(0.5, 1.5), ncol= 2, fontsize= f)
+
+    plt.tight_layout()
+    plt.savefig("./results/u_bound.png")
+
+
 def main():
     args = create_arguments()
+    repeatability_evaluation = args.repeatability_evaluation
 
     if repeatability_evaluation:  # reproduce experiment in Table1 of the paper
         no_questions = 20
