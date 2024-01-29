@@ -383,9 +383,7 @@ class SAPL:
             print(f"number of questions asked: {questions_asked}")
             print(f"most-likely prob: {posterior_w[w_star_idx]}")
             print(f"converged?: {w_star_idx.item(), w_final}")
-            q_agreed_over_asked = self.check_agreement(w_star_idx, w_final, q_order)
             print(f"number of agreed answers on asked questions: {q_agreed_over_asked}")
-            q_agreed = self.check_agreement(w_star_idx, w_final)
             print(f"number of agreed answers for all questions: {q_agreed}")
 
         return {
@@ -470,7 +468,9 @@ class SAPL:
             "no_questions_agreed": q_agreed,
         }
 
-    def noisy_convergence(self, threshold_w: float, max_questions: int, w_final: int):
+    def noisy_convergence(
+        self, threshold_w: float, max_questions: int, w_final: int, seed: int = None
+    ):
         """
         Synthetic experiments to test convergence when answers are noisy.
 
@@ -483,6 +483,9 @@ class SAPL:
             Dict: Convergence statistics.
 
         """
+        if seed is not None:
+            random.seed(seed)
+
         max_w = torch.max(self.prior_w)
         max_w_list = [max_w]
         questions_asked = 0
@@ -530,9 +533,7 @@ class SAPL:
             print(f"number of questions asked: {questions_asked}")
             print(f"most-likely prob: {posterior_w[w_star_idx]}")
             print(f"converged?: {w_star_idx.item(), w_final}")
-            q_agreed_over_asked = self.check_agreement(w_star_idx, w_final, q_order)
             print(f"number of agreed answers on asked questions: {q_agreed_over_asked}")
-            q_agreed = self.check_agreement(w_star_idx, w_final)
             print(f"number of agreed answers for all questions: {q_agreed}")
 
         return {
@@ -595,9 +596,7 @@ class SAPL:
 
         if self.debug:
             print(f"number of questions asked: {questions_asked}")
-            q_agreed_over_asked = self.check_agreement(w_star_idx, w_final, q_order)
             print(f"number of agreed answers on asked questions: {q_agreed_over_asked}")
-            q_agreed = self.check_agreement(w_star_idx, w_final)
             print(f"number of agreed answers for all questions: {q_agreed}")
 
         return {
