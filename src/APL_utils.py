@@ -15,6 +15,7 @@ import itertools as it
 from scipy.fft import fft2
 
 import WSTL
+
 import question_asker
 import preferenceGUI
 from pathlib import Path
@@ -375,6 +376,9 @@ class SAPL:
             self.prior_w = posterior_w
             questions_asked += 1
 
+        q_agreed_over_asked = self.check_agreement(w_star_idx, w_final, q_order)
+        q_agreed = self.check_agreement(w_star_idx, w_final)
+
         if self.debug:
             print(f"number of questions asked: {questions_asked}")
             print(f"most-likely prob: {posterior_w[w_star_idx]}")
@@ -387,7 +391,7 @@ class SAPL:
         return {
             "converged_w_index": w_star_idx.item(),
             "correct_w_index": w_final,
-            "probability": max_w,
+            "probability": max_w.item(),
             "no_questions_asked": questions_asked,
             "no_questions_agreed_of_asked": q_agreed_over_asked,
             "no_questions_agreed": q_agreed,
@@ -440,26 +444,27 @@ class SAPL:
             self.prior_w = posterior_w
             questions_asked += 1
 
+        q_agreed_over_asked = self.check_user_agreement(w_star_idx, answers, q_order)
+        all_answers = []
+        idx_signals = np.arange(WSTL.get_input_length(self.signals))
+        qs = list(it.combinations(idx_signals, 2))
+        for q in qs:
+            if correct_robustness[q[0]] > correct_robustness[q[1]]:
+                answer = 0
+            else:
+                answer = 1
+            all_answers.append(answer)
+        q_agreed = self.check_user_agreement(w_star_idx, all_answers)
+
         if self.debug:
             print(f"number of questions asked: {questions_asked}")
             print(f"most-likely prob: {posterior_w[w_star_idx]}")
-            q_agreed_over_asked = self.check_user_agreement(w_star_idx, answers, q_order)
             print(f"number of agreed answers on asked questions: {q_agreed_over_asked}")
-            all_answers = []
-            idx_signals = np.arange(WSTL.get_input_length(self.signals))
-            qs = list(it.combinations(idx_signals, 2))
-            for q in qs:
-                if correct_robustness[q[0]] > correct_robustness[q[1]]:
-                    answer = 0
-                else:
-                    answer = 1
-                all_answers.append(answer)
-            q_agreed = self.check_user_agreement(w_star_idx, all_answers)
             print(f"number of agreed answers for all questions: {q_agreed}")
 
         return {
             "converged_w_index": w_star_idx.item(),
-            "probability": max_w,
+            "probability": max_w.item(),
             "no_questions_asked": questions_asked,
             "no_questions_agreed_of_asked": q_agreed_over_asked,
             "no_questions_agreed": q_agreed,
@@ -518,6 +523,9 @@ class SAPL:
             self.prior_w = posterior_w
             questions_asked += 1
 
+        q_agreed_over_asked = self.check_agreement(w_star_idx, w_final, q_order)
+        q_agreed = self.check_agreement(w_star_idx, w_final)
+
         if self.debug:
             print(f"number of questions asked: {questions_asked}")
             print(f"most-likely prob: {posterior_w[w_star_idx]}")
@@ -531,7 +539,7 @@ class SAPL:
             "noise": noise,
             "converged_w_index": w_star_idx.item(),
             "correct_w_index": w_final,
-            "probability": max_w,
+            "probability": max_w.item(),
             "no_questions_asked": questions_asked,
             "no_questions_agreed_of_asked": q_agreed_over_asked,
             "no_questions_agreed": q_agreed,
@@ -582,6 +590,9 @@ class SAPL:
             self.prior_w = posterior_w
             questions_asked += 1
 
+        q_agreed_over_asked = self.check_agreement(w_star_idx, w_final, q_order)
+        q_agreed = self.check_agreement(w_star_idx, w_final)
+
         if self.debug:
             print(f"number of questions asked: {questions_asked}")
             q_agreed_over_asked = self.check_agreement(w_star_idx, w_final, q_order)
@@ -592,7 +603,7 @@ class SAPL:
         return {
             "converged_w_index": w_star_idx.item(),
             "correct_w_index": w_final,
-            "probability": max_w,
+            "probability": max_w.item(),
             "no_questions_asked": questions_asked,
             "no_questions_agreed_of_asked": q_agreed_over_asked,
             "no_questions_agreed": q_agreed,
