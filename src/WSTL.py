@@ -1,3 +1,4 @@
+# Copyright 2023 Toyota Research Institute.  All rights reserved.
 """
 This modules contructs a computation graph for WSTL weighted robustness
 and performs the computation. It returns the weightd robustness values

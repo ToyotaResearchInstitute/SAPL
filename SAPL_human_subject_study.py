@@ -1,3 +1,4 @@
+# Copyright 2023 Toyota Research Institute.  All rights reserved.
 """
 This program runs human subject studies on either a computer or a simulator
 on two scenarios: pedestrian and overtake.

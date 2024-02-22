@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+
+# Copyright 2023 Toyota Research Institute.  All rights reserved.
 """
 Safe Active Preference Learning (APL) Experiment Script
 
@@ -22,7 +24,7 @@ Command-line Arguments:
     - --repetition: Number of times the test will be repeated (default: 100).
 
 Example:
-    $ python3 convergence_analysis_ood_unlimited_q.py
+    $ python3 convergence_analysis_ood.py
     --no_samples 1000 --terminating_condition 0.99 --experiment overtake --repetition 100
 
 Author: Ruya Karagulle

@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+
+# Copyright 2023 Toyota Research Institute.  All rights reserved.
 """
 Safe Active Preference Learning (APL) Experiment Script
 

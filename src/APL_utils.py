@@ -1,3 +1,4 @@
+# Copyright 2023 Toyota Research Institute.  All rights reserved.
 """
 This module includes classes related to Safe Active Preference Learning framework.
 

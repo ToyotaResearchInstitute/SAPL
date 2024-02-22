@@ -1,3 +1,4 @@
+# Copyright 2023 Toyota Research Institute.  All rights reserved.
 """
 Utils functions for preprocess signals and formulas.
 These are scenario dependent functions and only defined for

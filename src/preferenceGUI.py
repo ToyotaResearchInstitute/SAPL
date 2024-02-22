@@ -1,3 +1,4 @@
+# Copyright 2023 Toyota Research Institute.  All rights reserved.
 """
 This module runs a GUI to play trajectory videos.
 It takes trajectory numbers and outputs a window with two videos.

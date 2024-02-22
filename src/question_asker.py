@@ -1,3 +1,4 @@
+# Copyright 2023 Toyota Research Institute.  All rights reserved.
 """
 This module contains tools to ask a given question on the motion base simulator.
 Motion base simulator uses CARLA and ROS2.
