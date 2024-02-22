@@ -9,3 +9,4 @@ experiment_runner.sh
 .devcontainer
 .dockerignore
 .github
+noisy_extension_analysis
