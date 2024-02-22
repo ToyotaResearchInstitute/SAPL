@@ -71,7 +71,7 @@ class SAPL:
         formula: WSTL.WSTL_Formula,
         no_samples: int,
         robustness_difference_limit: float = 0,
-        seed: int or None = None,
+        seed: int | None = None,
         debug: bool = False,
     ):
         """
@@ -222,7 +222,7 @@ class SAPL:
         self,
         simulator: bool,
         selected_q: tuple,
-        question_file: str or None = None,
+        question_file: str | None = None,
     ):
         """
         Play trajectories.
@@ -274,7 +274,7 @@ class SAPL:
         return next_w
 
     def check_agreement(
-        self, w_idx1: int, w_idx2: int, qs: list[tuple[int, int]] or None = None
+        self, w_idx1: int, w_idx2: int, qs: list[tuple[int, int]] | None = None
     ):
         """Compute agreement between two realizations for a given question list.
 
@@ -302,7 +302,7 @@ class SAPL:
         return correct_order / len(qs)
 
     def check_user_agreement(
-        self, w_idx1: int, answers: list, qs: list[tuple[int, int]] or None = None
+        self, w_idx1: int, answers: list, qs: list[tuple[int, int]] | None = None
     ):
         """Check user agreement of a realization.
 
@@ -696,7 +696,7 @@ class fft_APL:
         signals: tuple,
         formula: WSTL.WSTL_Formula,
         no_samples: int,
-        seed: int or None = None,
+        seed: int | None = None,
         debug: bool = False,
     ):
         """
@@ -826,9 +826,7 @@ class fft_APL:
         )
         return next_w
 
-    def check_fft_user_agreement(
-        self, w_idx1: int, answers: int, qs: list or None = None
-    ):
+    def check_fft_user_agreement(self, w_idx1: int, answers: int, qs: list | None = None):
         """
         Checks user agreement of a realization.
 
