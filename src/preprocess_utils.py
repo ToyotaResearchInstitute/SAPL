@@ -45,7 +45,7 @@ def get_formula(processed_signals, experiment):
         phi_destination = WSTL.Eventually(
             WSTL.Always(
                 subformula=WSTL.And(
-                    subformula1=position >= -271, subformula2=position <= -145
+                    subformula1=position >= -271, subformula2=position <= -200
                 ),
                 interval=[0, 10],
             )
@@ -145,7 +145,6 @@ def get_signals(data, experiment, N=None, max_length=None):
 
         if experiment == "pedestrian_cphs":
             pos = ego_data[k][:, 0].unsqueeze(0).unsqueeze(-1)
-            print(pos.shape)
             speed = speed.unsqueeze(0).unsqueeze(0).squeeze(-1)
             speed_smooth = (
                 torch.nn.functional.conv1d(speed, filt).squeeze(0).unsqueeze(-1)
@@ -317,7 +316,7 @@ def get_signals(data, experiment, N=None, max_length=None):
                 axis=1,
             )
     if experiment == "pedestrian_cphs":
-        print(acceleration.unsqueeze(-1).shape)
+        # print(acceleration.unsqueeze(-1).shape)
         return (
             (
                 (distance.unsqueeze(-1)),
@@ -396,17 +395,18 @@ def get_signals_from_demonstrations(participant, demo_idx, ):
     ego_data = []
     ado_data = []
 
+    N = len(demo_idx)
     for d in demo_idx:
-        data = pd.read_csv(f"./demonstrations/{participant}_trajectory-a_{d}.csv")
-        ego_data = torch.tensor(np.array([data['x'], data['y']]))
-        ado_data = torch.tensor(np.array([data['x_ped'], data['y_ped']]))
-
-    if N is None:
-        N = len(ego_data)
+        if d == 0 :
+            data = pd.read_csv(f"./demonstrations/{participant}_trajectory-a.csv")
+        else:
+            data = pd.read_csv(f"./demonstrations/{participant}_trajectory-a_{d}.csv")
+        ego_data.append(torch.tensor(np.array([data['x'][1::6], data['y'][1::6]]).T))
+        ado_data.append(torch.tensor(np.array([data['x_ped'][1::6], data['y_ped'][1::6]]).T))
 
     filt = (
-        1 / (15) * torch.ones((1, 1, 15))
-    )  # filtered instantaneous changes in CARLA speed data
+        1 / (20) * torch.ones((1, 1, 20))
+    ) 
     max_length = max([len(ego_data[k]) for k in range(N)])
 
     acceleration = torch.ones(size=(N, max_length, 1))
@@ -415,12 +415,17 @@ def get_signals_from_demonstrations(participant, demo_idx, ):
     position = torch.ones(size=(N, max_length, 1))
 
     for k in range(N):
+        print(ego_data[k].shape)
         velocity = (ego_data[k][:-1, :] - ego_data[k][1:, :]) / 0.1
+        print(velocity.shape)
         speed = torch.linalg.norm(velocity, axis=-1, keepdim=True)
 
         pos = ego_data[k][:, 0].unsqueeze(0).unsqueeze(-1)
         print(pos.shape)
         speed = speed.unsqueeze(0).unsqueeze(0).squeeze(-1)
+        
+        # speed_smooth = speed.unsqueeze(-1).squeeze(0)
+        # print(speed_smooth.shape)
         speed_smooth = (
             torch.nn.functional.conv1d(speed, filt).squeeze(0).unsqueeze(-1)
         )
@@ -468,7 +473,7 @@ def get_signals_from_demonstrations(participant, demo_idx, ):
             ),
             axis=1,
         )
-        
+    
     return (
             (
                 (distance.unsqueeze(-1)),
