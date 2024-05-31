@@ -157,7 +157,7 @@ class SAPL:
         the question list.
         """
 
-        # Folllowing nested for loop is vectorized in the function body.
+        # Following nested for loop is vectorized in the function body.
         # above one-liner is equivalent to:
         # self.probability_bt[:,j,:] = ( ( (1-answers)*exps[q[0], :].unsqueeze(-1)
         #                                 + answers*exps[q[1], :].unsqueeze(-1)).T
@@ -328,6 +328,67 @@ class SAPL:
         return correct_order / len(qs)
 
     # --- EXPERIMENTS ---
+    def cphs_experiment(
+        self,
+        threshold_w: float,
+        max_questions: int,
+        correct_robustness: int,
+        opposite: bool = False,
+    ):
+        max_w = torch.max(self.prior_w)
+        questions_asked = 0
+        w_star_idx = 0
+        q_order = []
+        answers = []
+        while (
+            max_w < threshold_w
+            and self.questions is not None
+            and questions_asked < max_questions
+        ):
+
+            selected_q, q_idx = self.query_selection()
+            print(selected_q[0], selected_q[1], self.questions, flush=True)
+
+            self.questions.remove(selected_q)
+            q_order.append(selected_q)
+
+            if opposite:
+                if correct_robustness[selected_q[0]] < correct_robustness[selected_q[1]]:
+                    answer = 0
+                else:
+                    answer = 1
+            else:
+                if correct_robustness[selected_q[0]] > correct_robustness[selected_q[1]]:
+                    answer = 0
+                else:
+                    answer = 1
+
+            answers.append(answer)
+            posterior_w = self.w_update(q_idx, answer)
+            max_w = torch.max(posterior_w)
+            w_star_idx = torch.argmax(posterior_w)
+            self.prior_w = posterior_w
+            questions_asked += 1
+            if self.debug:
+                print(f"Question Selected: {selected_q}")
+                print(
+                    f"Robustness wrt max weight set: \
+                        {self.robustness[selected_q[0], w_star_idx].item()}, \
+                            {self.robustness[selected_q[1], w_star_idx].item()}"
+                )
+                print(f"Probability of max weight: {max_w.item()}")
+
+        q_agreed_over_asked = self.check_user_agreement(w_star_idx, answers, q_order)
+        return (
+            w_star_idx,
+            self.robustness[:, w_star_idx],
+            self.formula,
+            self.questions,
+            max_w,
+            q_agreed_over_asked,
+            questions_asked,
+        )
+
     def convergence(self, threshold_w: float, max_questions: int, w_final: int):
         """
         Synthetic experiments to test convergence. In this setup,

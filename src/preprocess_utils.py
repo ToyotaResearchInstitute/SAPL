@@ -28,6 +28,32 @@ def get_formula(processed_signals, experiment):
     Returns:
         WSTL_formula: The formulated WSTL scenario.
     """
+    if experiment == "pedestrian_cphs":
+        distance = Expression("distance", processed_signals[0][0])
+        acceleration = Expression("acceleration", processed_signals[0][1][0])
+        jerk = Expression("jerk", processed_signals[0][1][1])
+        position = Expression("position", processed_signals[1][0])
+
+        phi1 = WSTL.Always(distance >= 2)
+
+        phi_comfort = WSTL.And(
+            subformula1=WSTL.Always(acceleration <= 10),
+            subformula2=WSTL.Always(jerk <= 30),
+        )
+
+        phi_destination = WSTL.Eventually(
+            WSTL.Always(
+                subformula=WSTL.And(
+                    subformula1=position >= -271, subformula2=position <= -245
+                ),
+                interval=[0, 10],
+            )
+        )
+
+        phi = WSTL.And(
+            subformula1=WSTL.And(subformula1=phi1, subformula2=phi_comfort),
+            subformula2=phi_destination,
+        )
 
     if experiment == "pedestrian":
         # speed = Expression( 'speed' ,processed_signals[1])
@@ -105,6 +131,7 @@ def get_signals(data, experiment, N=None, max_length=None):
     acceleration = torch.ones(size=(N, max_length, 1))
     jerk = torch.ones(size=(N, max_length, 1))
     distance = torch.ones(size=(N, max_length, 1))
+    position = torch.ones(size=(N, max_length, 1))
 
     lateral = torch.ones(size=(N, max_length, 1))
     longitudinal = torch.ones(size=(N, max_length, 1))
@@ -115,6 +142,57 @@ def get_signals(data, experiment, N=None, max_length=None):
         velocity = (ego_data[k][:-1, :] - ego_data[k][1:, :]) / 0.1
         speed = torch.linalg.norm(velocity, axis=-1, keepdim=True)
 
+        if experiment == "pedestrian_cphs":
+            pos = ego_data[k][:, 0].unsqueeze(0).unsqueeze(-1)
+            print(pos.shape)
+            speed = speed.unsqueeze(0).unsqueeze(0).squeeze(-1)
+            speed_smooth = (
+                torch.nn.functional.conv1d(speed, filt).squeeze(0).unsqueeze(-1)
+            )
+            accel = torch.linalg.norm(
+                (speed_smooth[:, :-1, :] - speed_smooth[:, 1:, :]) / 0.1,
+                axis=-1,
+                keepdim=True,
+            )
+            jrk = torch.linalg.norm(
+                (accel[:, :-1, :] - accel[:, 1:, :]) / 0.1, axis=-1, keepdim=True
+            )
+
+            dist = torch.linalg.norm(
+                ego_data[k] - ado_data[k], axis=-1, keepdim=True
+            ).unsqueeze(0)
+
+            distance[k, :, :] = torch.cat(
+                (
+                    dist,
+                    (dist[:, -1, :])
+                    * torch.ones(size=(1, max_length - dist.shape[1], 1)),
+                ),
+                axis=1,
+            )
+            acceleration[k, :, :] = torch.cat(
+                (
+                    accel,
+                    (accel[:, -1, :])
+                    * torch.ones(size=(1, max_length - accel.shape[1], 1)),
+                ),
+                axis=1,
+            )
+            jerk[k, :, :] = torch.cat(
+                (
+                    jrk,
+                    (jrk[:, -1, :]) * torch.ones(size=(1, max_length - jrk.shape[1], 1)),
+                ),
+                axis=1,
+            )
+
+            position[k, :, :] = torch.cat(
+                (
+                    pos,
+                    (pos[:, -1, :]) * torch.ones(size=(1, max_length - pos.shape[1], 1)),
+                ),
+                axis=1,
+            )
         if experiment == "pedestrian":
             speed = speed.unsqueeze(0).unsqueeze(0).squeeze(-1)
             speed_smooth = (
@@ -237,6 +315,15 @@ def get_signals(data, experiment, N=None, max_length=None):
                 ),
                 axis=1,
             )
+    if experiment == "pedestrian_cphs":
+        print(acceleration.unsqueeze(-1).shape)
+        return (
+            (
+                (distance.unsqueeze(-1)),
+                ((acceleration.unsqueeze(-1), jerk.unsqueeze(-1))),
+            ),
+            (position.unsqueeze(-1), position.unsqueeze(-1)),
+        )
 
     if experiment == "pedestrian":
         return (
