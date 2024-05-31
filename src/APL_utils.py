@@ -103,8 +103,10 @@ class SAPL:
         self.questions = list(it.combinations(idx_signals, 2))
 
         self.robustness = formula.robustness(signals, scale=-1).squeeze(1).squeeze(-1)
+        print(torch.min(self.robustness), torch.max(self.robustness))
         self.formula = self.scale_w_samples(formula, robustness_difference_limit)
         self.robustness = formula.robustness(signals, scale=-1).squeeze(1).squeeze(-1)
+        print(torch.min(self.robustness), torch.max(self.robustness))
 
         self.prior_w = 1 / no_samples * torch.ones(no_samples)
         self.debug = debug

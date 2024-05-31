@@ -16,6 +16,7 @@ import numpy as np
 from APL_utils import *
 import WSTL
 from WSTL import Expression
+import pandas as pd
 
 
 def get_formula(processed_signals, experiment):
@@ -44,7 +45,7 @@ def get_formula(processed_signals, experiment):
         phi_destination = WSTL.Eventually(
             WSTL.Always(
                 subformula=WSTL.And(
-                    subformula1=position >= -271, subformula2=position <= -245
+                    subformula1=position >= -271, subformula2=position <= -145
                 ),
                 interval=[0, 10],
             )
@@ -377,3 +378,101 @@ def remove_true_sample(formula, w_idx):
         )
     formula.update_weights()
     return formula
+
+
+def get_signals_from_demonstrations(participant, demo_idx, ):
+    """
+    Prepares a tuple of signals suitable for WSTL formula robustness computation.
+
+    Args:
+        data (list): Raw signal data.
+        experiment (str): Name of the scenario.
+        N (int, optional): Number of signals to set.
+        max_length (int, optional): Maximum length of signals.
+
+    Returns:
+        tuple: Tuple of signals formatted for WSTL formula computation.
+    """
+    ego_data = []
+    ado_data = []
+
+    for d in demo_idx:
+        data = pd.read_csv(f"./demonstrations/{participant}_trajectory-a_{d}.csv")
+        ego_data = torch.tensor(np.array([data['x'], data['y']]))
+        ado_data = torch.tensor(np.array([data['x_ped'], data['y_ped']]))
+
+    if N is None:
+        N = len(ego_data)
+
+    filt = (
+        1 / (15) * torch.ones((1, 1, 15))
+    )  # filtered instantaneous changes in CARLA speed data
+    max_length = max([len(ego_data[k]) for k in range(N)])
+
+    acceleration = torch.ones(size=(N, max_length, 1))
+    jerk = torch.ones(size=(N, max_length, 1))
+    distance = torch.ones(size=(N, max_length, 1))
+    position = torch.ones(size=(N, max_length, 1))
+
+    for k in range(N):
+        velocity = (ego_data[k][:-1, :] - ego_data[k][1:, :]) / 0.1
+        speed = torch.linalg.norm(velocity, axis=-1, keepdim=True)
+
+        pos = ego_data[k][:, 0].unsqueeze(0).unsqueeze(-1)
+        print(pos.shape)
+        speed = speed.unsqueeze(0).unsqueeze(0).squeeze(-1)
+        speed_smooth = (
+            torch.nn.functional.conv1d(speed, filt).squeeze(0).unsqueeze(-1)
+        )
+        accel = torch.linalg.norm(
+            (speed_smooth[:, :-1, :] - speed_smooth[:, 1:, :]) / 0.1,
+            axis=-1,
+            keepdim=True,
+        )
+        jrk = torch.linalg.norm(
+            (accel[:, :-1, :] - accel[:, 1:, :]) / 0.1, axis=-1, keepdim=True
+        )
+
+        dist = torch.linalg.norm(
+            ego_data[k] - ado_data[k], axis=-1, keepdim=True
+        ).unsqueeze(0)
+
+        distance[k, :, :] = torch.cat(
+            (
+                dist,
+                (dist[:, -1, :])
+                * torch.ones(size=(1, max_length - dist.shape[1], 1)),
+            ),
+            axis=1,
+        )
+        acceleration[k, :, :] = torch.cat(
+            (
+                accel,
+                (accel[:, -1, :])
+                * torch.ones(size=(1, max_length - accel.shape[1], 1)),
+            ),
+            axis=1,
+        )
+        jerk[k, :, :] = torch.cat(
+            (
+                jrk,
+                (jrk[:, -1, :]) * torch.ones(size=(1, max_length - jrk.shape[1], 1)),
+            ),
+            axis=1,
+        )
+
+        position[k, :, :] = torch.cat(
+            (
+                pos,
+                (pos[:, -1, :]) * torch.ones(size=(1, max_length - pos.shape[1], 1)),
+            ),
+            axis=1,
+        )
+        
+    return (
+            (
+                (distance.unsqueeze(-1)),
+                ((acceleration.unsqueeze(-1), jerk.unsqueeze(-1))),
+            ),
+            (position.unsqueeze(-1), position.unsqueeze(-1)),
+        )

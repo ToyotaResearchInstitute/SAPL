@@ -10,7 +10,8 @@ Date: June 2023
 from tkinter import *
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
-import tkvideo as tv
+import tkvideo as tvi
+import tkVideoPlayer as tv
 
 
 class GUI:
@@ -53,7 +54,7 @@ class GUI:
         """
         self.window = Tk()
         self.window.geometry("1500x600")
-        self.center_window(self.window, 1500, 600)
+        self.center_window(self.window, 3000, 1200)
         self.window.title("Driving Behavior Preferences")
 
         filename_a = (
@@ -66,9 +67,7 @@ class GUI:
             + f"/trajectory_{selected_q[1]}/trajectory_{selected_q[1]}"
             + ".avi"
         )
-        size_adjust = 0.75
-        video_size = (int(size_adjust * 1300), int(size_adjust * 724))
-
+        
         button_a = Button(text="Replay Trajectory A", command=self.playVideo_a)
         button_b = Button(text="Replay Trajectory B", command=self.playVideo_b)
 
@@ -77,8 +76,11 @@ class GUI:
         button_b.grid(column=1, row=0, padx=10)
         # button_b.pack(side=LEFT)
 
-        frame_a = Frame(master=self.window, width=700, height=350)
-        frame_b = Frame(master=self.window, width=700, height=350)
+        frame_a = Frame(master=self.window, width=1280, height=960)
+        frame_b = Frame(master=self.window, width=1280, height=960)
+
+        # frame_a = Frame(master=self.window, width=1400, height=700)
+        # frame_b = Frame(master=self.window, width=1400, height=700)
 
         label_a = Label(frame_a, text="Trajectory A")
         label_b = Label(frame_b, text="Trajectory B")
@@ -86,14 +88,18 @@ class GUI:
         label_a.pack()
         label_b.pack()
 
-        video_label = Label(frame_a)
-        video_label.pack()
-        self.player_a = tv.tkvideo(filename_a, label=video_label, size=video_size)
+        # self.player_a = tv.tkvideo(filename_a, label=video_label, size=video_size, hz=30)
+        # self.player_a.play()
+        self.player_a = tv.TkinterVideo(master=frame_a, scaled=True)
+        self.player_a.load(filename_a)
+        self.player_a.pack(expand=True, fill="both")
         self.player_a.play()
 
-        video_label = Label(frame_b)
-        video_label.pack()
-        self.player_b = tv.tkvideo(filename_b, label=video_label, size=video_size)
+        # self.player_b = tvi.tkvideo(filename_b, label=video_label, size=video_size)
+        # self.player_b.play()
+        self.player_b = tv.TkinterVideo(master=frame_b, scaled=True)
+        self.player_b.load(filename_b)
+        self.player_b.pack(expand=True, fill="both")
         self.player_b.play()
 
         frame_a.pack_propagate(0)
@@ -101,8 +107,8 @@ class GUI:
         # frame_a.pack(side=LEFT, padx=0, pady=0)
         # frame_b.pack(side=RIGHT, padx=0, pady=0)
 
-        frame_a.grid(column=0, row=1, padx=10)
-        frame_b.grid(column=1, row=1, padx=10)
+        frame_a.grid(column=0, row=1, padx=110)
+        frame_b.grid(column=1, row=1, padx=100)
 
         self.window.mainloop()
 
