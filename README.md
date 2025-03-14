@@ -56,6 +56,20 @@ pre-commit install
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
 
-## Acknowledgments
+## Citation
+If you use the SAPL framework in your research, please cite the following paper:
+```
+@inproceedings{Karagulle2024SAPL,
+author = {Karagulle, Ruya and Ozay, Necmiye and Arechiga, Nikos and Decastro, Jonathan and Best, Andrew},
+title = {Incorporating Logic in Online Preference Learning for Safe Personalization of Autonomous Vehicles},
+year = {2024},
+doi = {10.1145/3641513.3650129},
+booktitle = {Proceedings of the 27th ACM International Conference on Hybrid Systems: Computation and Control},
+articleno = {5},
+numpages = {11},
+location = {Hong Kong SAR, China},
+series = {HSCC '24}
+}
+```
 
 
