@@ -1,7 +1,7 @@
 # Copyright 2023 Toyota Research Institute.  All rights reserved.
 """
-This modules contructs a computation graph for WSTL weighted robustness
-and performs the computation. It returns the weightd robustness values
+This modules constructs a computation graph for WSTL weighted robustness
+and performs the computation. It returns the weighted robustness values
 of a set of signals with different weight valuations. These weight
 valuations can be set as all 1 (STL case) or can be set randomly.
 
@@ -85,7 +85,7 @@ class WSTL_Formula(torch.nn.Module):
                                           with each subformula
 
     Methods:
-        robustnes: Computes robustness for a given time intance.
+        robustness: Computes robustness for a given time instance.
         set_weights: Initializes weight values.
         update_weights: Updates weight values for sublayers.
         forward: Computes weighted robustness for given input signals
@@ -660,7 +660,7 @@ class Negation(WSTL_Formula):
 
     def weight_assignment(self, inputs, w_range, no_samples, random, **kwargs):
         """
-        Assigns weights to the negaiton along with its subformula.
+        Assigns weights to the negation along with its subformula.
 
         Args:
             inputs (Expression or torch.Tensor or tuple): Input signals.
